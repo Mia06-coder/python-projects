@@ -2,6 +2,7 @@ import os
 import sqlite3
 import argparse
 import logging
+import calendar
 from datetime import datetime
 from rich.console import Console
 
@@ -163,13 +164,18 @@ class ExpenseTracker:
             logging.error(f"Error fetching expenses: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
 
-    def get_total_expenses(self) -> None:
+    def get_total_expenses(self, month:int = None) -> None:
         """
         Retrieves and displays the total sum of all recorded expenses.
 
         This method calculates the total expenses from the database by summing up 
-        all the amounts in the `expenses` table. If no expenses are recorded, 
+        all the amounts in the `expenses` table. If a specific month is provided, 
+        it filters expenses for that month only. If no expenses are recorded, 
         it notifies the user. Otherwise, it displays the total amount in a formatted style.
+
+        Args:
+        month (int, optional): The month (1-12) for which expenses should be retrieved. 
+                               Defaults to None, which retrieves all expenses.
 
         Outputs:
             - The total expenses, formatted as a monetary value (e.g., $123.45).
@@ -180,20 +186,36 @@ class ExpenseTracker:
             - sqlite3.Error: If an error occurs while interacting with the database.
         """
         try:
+            # Validate month input
+            if month is not None and (month < 1 or month > 12):
+                console.print("[bold red]Invalid month. Please provide a value between 1 and 12.[/]")
+                return
+            
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
 
-                # Execute SQL query to calculate the sum of all expense amounts
-                cursor.execute("SELECT SUM(amount) FROM expenses")
-                total_expenses = cursor.fetchone()[0]
+                if month is not None:
+                    # Convert month number to month name
+                    month_name = calendar.month_name[month]
 
-                # Check if there are no expenses recorded yet
+                    # Query for expenses in the specified month
+                    cursor.execute("SELECT SUM(amount) FROM expenses WHERE strftime('%m', date)=?", (f"{month:02d}",))
+                    total_expenses = cursor.fetchone()[0]
+                else:
+                    # Query for all expenses
+                    cursor.execute("SELECT SUM(amount) FROM expenses")
+                    total_expenses = cursor.fetchone()[0]
+
+                # If there are no expenses are recorded
                 if total_expenses is None:
                     console.print("[yellow]No expenses recorded yet.[/]")
                     return
-                
-                # Display the total expenses in a formatted way
-                console.print(f"\nTotal expenses: [bold cyan]${total_expenses:.2f}[/]")
+
+                # Display the total expenses 
+                if month is not None:
+                    console.print(f"\nTotal expenses for the month of {month_name}: [bold cyan]${total_expenses:.2f}[/]")
+                else:
+                    console.print(f"\nTotal expenses: [bold cyan]${total_expenses:.2f}[/]")
         
         except sqlite3.Error as e:
             logging.error(f"Database error: {e}")
@@ -279,7 +301,8 @@ def main() -> None:
     subparsers.add_parser("list", help="List all recorded expenses")
 
     # Command to get the summary of total expenses
-    subparsers.add_parser("summary", help="Displays the total amount of recorded expenses")
+    summary_parser = subparsers.add_parser("summary", help="Displays the total amount of recorded expenses")
+    summary_parser.add_argument("--month", type=int, required=False, help="Month of the expense was made")
 
     # Delete expense command configuration
     delete_parser = subparsers.add_parser("delete", help="Delete expense by its ID")
@@ -292,7 +315,7 @@ def main() -> None:
     elif args.command == "list":
         tracker.list_expenses()
     elif args.command == "summary":
-        tracker.get_total_expenses()
+        tracker.get_total_expenses(args.month)
     elif args.command == "delete":
         tracker.delete_expense(args.id)
     else:
