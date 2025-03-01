@@ -163,7 +163,7 @@ class ExpenseTracker:
             logging.error(f"Error fetching expenses: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
 
-    def get_total_expenses(self):
+    def get_total_expenses(self) -> None:
         """
         Retrieves and displays the total sum of all recorded expenses.
 
@@ -195,6 +195,56 @@ class ExpenseTracker:
                 # Display the total expenses in a formatted way
                 console.print(f"\nTotal expenses: [bold cyan]${total_expenses:.2f}[/]")
         
+        except sqlite3.Error as e:
+            logging.error(f"Database error: {e}")
+            console.log(f"[bold red]Database error: {e}[/]")
+
+    def delete_expense(self, expense_id:int) -> None:
+        """
+        Deletes an expense from the database based on the provided expense ID, and logs the deleted expense to a file for record-keeping.
+
+        This method checks if the specified expense ID exists in the database. If 
+        the ID is found, the corresponding expense record is deleted and logged. If the ID 
+        doesn't exist, a message is displayed notifying the user.
+
+        Parameters:
+            expense_id (int): The ID of the expense to be deleted.
+
+        Outputs:
+            - A message indicating whether the deletion was successful or if the ID was not found.
+            - None
+
+        Raises:
+            - sqlite3.Error: If an error occurs while interacting with the database.
+        """
+        try:
+            with sqlite3.connect(DB_FILE) as conn:
+                cursor = conn.cursor()
+
+                # Check if the expense ID exists directly in the database
+                cursor.execute("SELECT * FROM expenses WHERE id=?", (expense_id,))
+                expense = cursor.fetchone()
+
+                # If the ID doesn't exist, print a message and return
+                if not expense:
+                    console.print("[yellow]Expense ID not found.[/]")
+                    return
+                    
+                # If the ID is valid, proceed to delete the expense
+                # Format the log message
+                deleted_expense_log = f"{expense_id}: {expense[1]} - {expense[2]} - ${expense[3]:.2f} - {datetime.now().strftime('%d %b %Y %H:%M:%S')}\n"
+
+                # Append the deleted expense to a log file
+                with open("deleted_expenses.log", "a") as log_file:
+                    log_file.write(deleted_expense_log)
+
+                # Delete the expense from the database
+                cursor.execute("DELETE FROM expenses WHERE id=?",(expense_id,))
+                conn.commit()
+
+                # Notify the user that the expense was successfully deleted
+                console.print("[green]Expense successfully deleted![/]")
+
         except sqlite3.Error as e:
             logging.error(f"Database error: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
@@ -231,6 +281,10 @@ def main() -> None:
     # Command to get the summary of total expenses
     subparsers.add_parser("summary", help="Displays the total amount of recorded expenses")
 
+    # Delete expense command configuration
+    delete_parser = subparsers.add_parser("delete", help="Delete expense by its ID")
+    delete_parser.add_argument("--id",type=int, required=True, help="ID of the expense to delete")
+    
     args = parser.parse_args()
 
     if args.command == "add":
@@ -239,6 +293,8 @@ def main() -> None:
         tracker.list_expenses()
     elif args.command == "summary":
         tracker.get_total_expenses()
+    elif args.command == "delete":
+        tracker.delete_expense(args.id)
     else:
         parser.print_help()
 
