@@ -16,6 +16,7 @@ Python was chosen due to its simplicity, readability, and strong ecosystem for a
 
 - [How the Project Came About](#how-the-project-came-about)
 - [Motivation Behind It](#motivation-behind-it)
+- [Features](#features)
 - [Usage](#usage)
 - [Limitations](#limitations)
 - [Challenges](#challenges)
@@ -32,6 +33,13 @@ This project is part of my **Python learning journey**. I’m following the **ro
 ## **Motivation Behind It**
 
 I wanted to build a **practical, real-world application** that enhances my understanding of **Python, databases, and command-line interactions**. Managing expenses is a common task, and creating a tracker helps solidify my skills while solving a useful problem.
+
+## Features
+
+- **Add Expenses**: Record new expenses with a description and amount.
+- **List Expenses**: View all recorded expenses with a formatted table.
+- **Summary**: Get a total of all recorded expenses.
+- **Delete Expenses**: Remove expenses from the database by ID, with all deletions logged for audit purposes.
 
 ## **Usage**
 
@@ -82,6 +90,13 @@ To view the total expenses:
 
 ```sh
 python main.py summary
+```
+
+To delete an expense
+
+```sh
+python main.py delete --id 5
+
 ```
 
 ---
