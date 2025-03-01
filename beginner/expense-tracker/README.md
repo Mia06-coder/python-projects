@@ -40,6 +40,7 @@ I wanted to build a **practical, real-world application** that enhances my under
 - **List Expenses**: View all recorded expenses with a formatted table.
 - **Summary**: Get a total of all recorded expenses, with an option to filter by month.
 - **Delete Expenses**: Remove expenses from the database by ID, with all deletions logged for audit purposes.
+- **Update Expenses**: Update an existing expense with new values for amount, description, or date. All updates are logged for future reference.
 
 ## **Usage**
 
@@ -103,6 +104,12 @@ To delete an expense
 ```sh
 python main.py delete --id 5
 
+```
+
+To update an expense
+
+```sh
+python main.py update --id 5 --amount 100.00 --description "Pillows" --date "2025-03-01"
 ```
 
 ---
