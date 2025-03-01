@@ -163,6 +163,42 @@ class ExpenseTracker:
             logging.error(f"Error fetching expenses: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
 
+    def get_total_expenses(self):
+        """
+        Retrieves and displays the total sum of all recorded expenses.
+
+        This method calculates the total expenses from the database by summing up 
+        all the amounts in the `expenses` table. If no expenses are recorded, 
+        it notifies the user. Otherwise, it displays the total amount in a formatted style.
+
+        Outputs:
+            - The total expenses, formatted as a monetary value (e.g., $123.45).
+            - A message if no expenses have been recorded.
+            - None
+
+        Raises:
+            - sqlite3.Error: If an error occurs while interacting with the database.
+        """
+        try:
+            with sqlite3.connect(DB_FILE) as conn:
+                cursor = conn.cursor()
+
+                # Execute SQL query to calculate the sum of all expense amounts
+                cursor.execute("SELECT SUM(amount) FROM expenses")
+                total_expenses = cursor.fetchone()[0]
+
+                # Check if there are no expenses recorded yet
+                if total_expenses is None:
+                    console.print("[yellow]No expenses recorded yet.[/]")
+                    return
+                
+                # Display the total expenses in a formatted way
+                console.print(f"\nTotal expenses: [bold cyan]${total_expenses:.2f}[/]")
+        
+        except sqlite3.Error as e:
+            logging.error(f"Database error: {e}")
+            console.log(f"[bold red]Database error: {e}[/]")
+
 def main() -> None:
     """
     Main function to handle user input and manage expense tracking via CLI.
@@ -184,12 +220,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Expense Tracker CLI")
     subparsers = parser.add_subparsers(dest="command")
 
-    # Add expense command
+    # Add expense command configuration
     add_parser = subparsers.add_parser("add", help="Add a new expense")
     add_parser.add_argument("--description", required=True, help="Description of the expense")
     add_parser.add_argument("--amount", type=float, required=True, help="Expense amount")
 
+    # Command to list all recorded expenses
     subparsers.add_parser("list", help="List all recorded expenses")
+
+    # Command to get the summary of total expenses
+    subparsers.add_parser("summary", help="Displays the total amount of recorded expenses")
 
     args = parser.parse_args()
 
@@ -197,6 +237,8 @@ def main() -> None:
         tracker.add_expense(args.description, args.amount)
     elif args.command == "list":
         tracker.list_expenses()
+    elif args.command == "summary":
+        tracker.get_total_expenses()
     else:
         parser.print_help()
 
