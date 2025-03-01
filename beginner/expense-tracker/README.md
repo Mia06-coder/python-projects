@@ -78,6 +78,12 @@ To list all recorded expenses:
 python main.py list
 ```
 
+To view the total expenses:
+
+```sh
+python main.py summary
+```
+
 ---
 
 ## **Limitations**
