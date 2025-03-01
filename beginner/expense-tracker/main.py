@@ -221,6 +221,18 @@ class ExpenseTracker:
             logging.error(f"Database error: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
 
+    def check_id(self, cursor,expense_id:int) -> tuple[bool,tuple|None]:
+        # Check if the expense ID exists directly in the database
+        cursor.execute("SELECT * FROM expenses WHERE id=?", (expense_id,))
+        expense = cursor.fetchone()
+
+        # If the ID doesn't exist, print a message and return
+        if not expense:
+            console.print("[yellow]Expense ID not found.[/]")
+            return False, None
+        
+        return True, expense
+
     def delete_expense(self, expense_id:int) -> None:
         """
         Deletes an expense from the database based on the provided expense ID, and logs the deleted expense to a file for record-keeping.
@@ -243,19 +255,14 @@ class ExpenseTracker:
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
 
-                # Check if the expense ID exists directly in the database
-                cursor.execute("SELECT * FROM expenses WHERE id=?", (expense_id,))
-                expense = cursor.fetchone()
-
-                # If the ID doesn't exist, print a message and return
-                if not expense:
-                    console.print("[yellow]Expense ID not found.[/]")
-                    return
+                id_found, expense = self.check_id(cursor,expense_id)
                     
+                if not id_found:
+                    return
+                
                 # If the ID is valid, proceed to delete the expense
                 # Format the log message
                 deleted_expense_log = f"{expense_id}: {expense[1]} - {expense[2]} - ${expense[3]:.2f} - {datetime.now().strftime('%d %b %Y %H:%M:%S')}\n"
-
                 # Append the deleted expense to a log file
                 with open("deleted_expenses.log", "a") as log_file:
                     log_file.write(deleted_expense_log)
@@ -271,6 +278,110 @@ class ExpenseTracker:
             logging.error(f"Database error: {e}")
             console.log(f"[bold red]Database error: {e}[/]")
 
+    def update_expense(self, expense_id: int, amount: float = None, description: str = None, date: str = None) -> None:
+        """
+        Updates an existing expense in the database based on the provided expense ID.
+
+        This method allows the user to update the amount, description, and date of an expense. 
+        If no valid update fields are provided, a message is displayed, and no changes are made.
+        It also logs the updates made to an expense in a log file for future reference.
+
+        Args:
+            expense_id (int): The ID of the expense to be updated.
+            amount (float, optional): The new amount for the expense.
+            description (str, optional): The new description of the expense.
+            date (str, optional): The new date of the expense (format: YYYY-MM-DD).
+
+        Outputs:
+            - A success message if the expense is updated.
+            - A message if no updates are made.
+            - Logs the update in a file for record-keeping.
+            - None
+            
+        Raises:
+            - sqlite3.Error: If an error occurs during database interaction.
+        """
+        try:
+            with sqlite3.connect(DB_FILE) as conn:
+                cursor = conn.cursor()
+
+                # Check if the expense ID exists in the database
+                id_found, expense = self.check_id(cursor,expense_id)
+
+                # If the ID does not exist, return without updating
+                if not id_found:
+                    return
+                
+                # To check if any changes were actually made
+                original_amount = expense[3]
+                original_description = expense[2]
+                original_date = expense[1]
+                
+                updates = []
+                params = []
+
+                # Validate and update the date if provided
+                if date is not None:
+                    if not validate_date(date):
+                        console.print("[bold red]Invalid date format. Please use YYYY-MM-DD.[/]")
+                        return
+                    updates.append("date=?")
+                    params.append(date)
+
+                if amount is not None:
+                    updates.append("amount=?")
+                    params.append(amount)
+
+                if description is not None:
+                    updates.append("description=?")
+                    params.append(description)
+
+                # If no updates were provided, notify the user and return
+                if not updates:
+                    console.print("[yellow]No changes provided. Nothing to update.[/]")
+                    return
+                
+                params.append(expense_id)
+
+                # Create the SQL UPDATE query dynamically based on the provided fields
+                update_query = f"UPDATE expenses SET {', '.join(updates)} WHERE id=?"               
+                cursor.execute(update_query, tuple(params))
+                conn.commit()
+
+                # Log the details of the update for record-keeping
+                updated_log = f"Updated Expense ID {expense_id} - {datetime.now().strftime('%d %b %Y %H:%M:%S')}: "
+                if amount is not None and original_amount != amount:
+                    updated_log += f"Amount: ${expense[3]:.2f} -> ${amount:.2f}, "
+                if description is not None and original_description != description:
+                    updated_log += f"Description: '{expense[2]}' -> '{description}', "
+                if date is not None and original_date != date:
+                    updated_log += f"Date: {expense[1]} -> {date}, "
+                
+                updated_log = updated_log.rstrip(", ") + "\n"
+
+                # Append the updated expense to a log file
+                with open("update_expenses.log", "a") as log_file:
+                    log_file.write(updated_log)
+
+                # Notify the user that the expense was successfully updated
+                console.print("[green]Expense successfully updated![/]")
+            
+                # Log success for auditing
+                logging.info(f"Expense ID {expense_id} successfully updated.")
+        
+        except sqlite3.Error as e:
+            logging.error(f"Database error: {e}")
+            console.log(f"[bold red]Database error: {e}[/]")
+
+def validate_date(date_str: str) -> bool:
+        try:
+            # Try to parse the date string into a datetime object
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return True
+        except ValueError:
+            # If a ValueError occurs, the date format is invalid
+            return False
+        
 def main() -> None:
     """
     Main function to handle user input and manage expense tracking via CLI.
@@ -302,12 +413,19 @@ def main() -> None:
 
     # Command to get the summary of total expenses
     summary_parser = subparsers.add_parser("summary", help="Displays the total amount of recorded expenses")
-    summary_parser.add_argument("--month", type=int, required=False, help="Month of the expense was made")
+    summary_parser.add_argument("--month", type=int, help="Month of the expense was made")
 
     # Delete expense command configuration
     delete_parser = subparsers.add_parser("delete", help="Delete expense by its ID")
     delete_parser.add_argument("--id",type=int, required=True, help="ID of the expense to delete")
     
+    # Update expense command configuration
+    update_parser = subparsers.add_parser("update", help="Update expense by its ID")
+    update_parser.add_argument("--id",type=int, required=True, help="ID of the expense to update")
+    update_parser.add_argument("--amount", type=float, help="New expense amount")
+    update_parser.add_argument("--description", type=str, help="New description for the expense")
+    update_parser.add_argument("--date", type=str, help="New date of the expense (YYYY-MM-DD)")
+
     args = parser.parse_args()
 
     if args.command == "add":
@@ -318,6 +436,8 @@ def main() -> None:
         tracker.get_total_expenses(args.month)
     elif args.command == "delete":
         tracker.delete_expense(args.id)
+    elif args.command == "update":
+        tracker.update_expense(args.id, args.amount, args.description, args.date)
     else:
         parser.print_help()
 
