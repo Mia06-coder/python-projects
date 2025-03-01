@@ -119,6 +119,50 @@ class ExpenseTracker:
             logging.error(f"Error adding expense: {e}")
             console.log(f"[bold red]Error adding expense: {e}[/]")
 
+    def list_expenses(self):
+        """
+        Retrieves and displays all recorded expenses from the database.
+
+        This method fetches all the expenses stored in the database and prints them 
+        in a user-friendly, formatted table. If no expenses are found, it notifies 
+        the user that there are no records.
+
+        Outputs:
+            - A formatted table displaying the expense records, including:
+                - ID: Unique identifier of the expense.
+                - Date: Date of the expense.
+                - Description: Description of the expense.
+                - Amount: Amount spent, displayed in dollars.
+            - A message if no expenses are recorded.
+            - None
+
+        Raises:
+            - sqlite3.Error: If an error occurs while interacting with the database.
+        """
+        try:
+            with sqlite3.connect(DB_FILE) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, date, description, amount FROM expenses")
+                expenses = cursor.fetchall()
+
+                if not expenses:
+                    console.print("[yellow]No expenses recorded yet.[/]")
+                    return
+                
+                console.print("[white]=[/]" * 70)
+                console.print(f"[cyan]{'ID':<5} {'Date':<15}  {'Description':<35}  {'Amount':<8}[/]")  
+                console.print("[white]-[/]" * 70)
+                for expense in expenses:
+                    # Convert the date string to a datetime object and format it
+                    date_obj = datetime.strptime(expense[1], "%Y-%m-%d")
+                    formatted_date = date_obj.strftime("%d-%b-%Y").upper()  
+
+                    console.print(f"[white]{expense[0]:<5} {formatted_date:<15}  {expense[2]:<35}  ${expense[3]:>8.2f}[/]")
+                console.print(f"[bold cyan]\n({len(expenses)})[/]")
+        except sqlite3.Error as e:
+            logging.error(f"Error fetching expenses: {e}")
+            console.log(f"[bold red]Database error: {e}[/]")
+
 def main() -> None:
     """
     Main function to handle user input and manage expense tracking via CLI.
@@ -145,10 +189,14 @@ def main() -> None:
     add_parser.add_argument("--description", required=True, help="Description of the expense")
     add_parser.add_argument("--amount", type=float, required=True, help="Expense amount")
 
+    subparsers.add_parser("list", help="List all recorded expenses")
+
     args = parser.parse_args()
 
     if args.command == "add":
         tracker.add_expense(args.description, args.amount)
+    elif args.command == "list":
+        tracker.list_expenses()
     else:
         parser.print_help()
 
