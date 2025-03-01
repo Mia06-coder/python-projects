@@ -38,7 +38,7 @@ I wanted to build a **practical, real-world application** that enhances my under
 
 - **Add Expenses**: Record new expenses with a description and amount.
 - **List Expenses**: View all recorded expenses with a formatted table.
-- **Summary**: Get a total of all recorded expenses.
+- **Summary**: Get a total of all recorded expenses, with an option to filter by month.
 - **Delete Expenses**: Remove expenses from the database by ID, with all deletions logged for audit purposes.
 
 ## **Usage**
@@ -90,6 +90,12 @@ To view the total expenses:
 
 ```sh
 python main.py summary
+```
+
+To view the total expenses for a specific month (e.g., March):
+
+```sh
+python main.py summary --month 3
 ```
 
 To delete an expense
