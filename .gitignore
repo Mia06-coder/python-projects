@@ -60,6 +60,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.db
 
 # Flask stuff:
 instance/
@@ -127,6 +128,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+my_venv/
 
 # Spyder project settings
 .spyderproject
