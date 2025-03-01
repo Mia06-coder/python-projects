@@ -68,8 +68,14 @@ python main.py --help
 
 To add an expense:
 
-```bash
+```sh
 python main.py add --description "Monthly Netflix Subscription" --amount 15.99
+```
+
+To list all recorded expenses:
+
+```sh
+python main.py list
 ```
 
 ---
